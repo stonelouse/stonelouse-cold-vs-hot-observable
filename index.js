@@ -38,15 +38,28 @@ class FakeWebSocket {
     }
   }
 }
+// Notice we've moved the creation of the WebSocket
+// *outside* of the observable.
+const socket = new FakeWebSocket("ws://someurl");
 
 const source = new Observable(observer => {
-  const socket = new FakeWebSocket("ws://someurl");
+  // here our observable is "closing over" the producer
+  // the producer (socket) is a shared reference for
+  // every call/subscription
   socket.addEventListener("message", e => observer.next(e));
-  return () => socket.close();
+
+  //NOTICE: no returned teardown. :(
 });
+/* In comparison: COLD Observable */
+// const source = new Observable(observer => {
+//   const socket = new FakeWebSocket("ws://someurl");
+//   socket.addEventListener("message", e => observer.next(e));
+//   return () => socket.close();
+// });
 
 /**
- * Notice in console that two connections are made
+ * Notice in console that ONE connection is made
+ * and shared.
  */
 
 // first connection
@@ -58,12 +71,13 @@ setTimeout(() => {
   sub2 = source.subscribe(e => console.log("s2", e));
 }, 1000);
 
-// since it's a "cold" observable, a new connection is created
-// each time you subscribe to the same observable.
-// (aka, each time you call the function,
-//       since observables are just functions)
+// since it's a "hot" observable, a new connection is created
+// only once for all subscriptions to the same observable.
 
 setTimeout(() => {
   sub1.unsubscribe();
-  sub2.unsubscribe();
 }, 3000);
+
+setTimeout(() => {
+  sub2.unsubscribe();
+}, 4000);
