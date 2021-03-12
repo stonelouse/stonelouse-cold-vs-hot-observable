@@ -1,6 +1,6 @@
 // Import stylesheets
 import "./style.css";
-import { Observable } from "rxjs";
+import { Subject } from "rxjs";
 
 // Write Javascript code!
 const appDiv = document.getElementById("app");
@@ -8,76 +8,34 @@ appDiv.innerHTML = `<h1>JS Starter</h1>`;
 
 console.clear();
 
-/** A really, really, really fake websocket */
-class FakeWebSocket {
-  constructor(url) {
-    this.url = url;
-    console.log("connecting to " + url);
-    let i = 0;
-    this.id = setInterval(() => this.triggerMessage(i++), 500);
-  }
+const subject = new Subject();
 
-  close() {
-    console.log("closing connection to " + this.url);
-    clearInterval(this.id);
-  }
+// you can subscribe to them like any other observable
 
-  addEventListener(name, handler) {
-    const listeners = (this.listeners = this.listeners || {});
-    const handlers = (listeners[name] = listeners[name] || []);
-    handlers.push(handler);
-  }
+subject.subscribe(
+  x => console.log("one", x), 
+  err => console.error("one", err));
+subject.subscribe(
+  x => console.log("two", x), 
+  err => console.error("two", err));
+subject.subscribe(
+  x => console.log("three", x),
+  err => console.error("three", err)
+);
 
-  triggerMessage(msg) {
-    const listeners = this.listeners;
-    if (listeners) {
-      const handlers = listeners["message"];
-      handlers.forEach(handler =>
-        handler({ target: this, data: JSON.stringify(msg) })
-      );
-    }
-  }
+// and you can next values into subjects.
+// NOTICE: each value is sent to *all* subscribers. This is the multicast nature of subjects.
+
+subject.next(1);
+subject.next(2);
+subject.next(3);
+
+// An error will also be sent to all subscribers
+subject.error(new Error("bad"));
+
+// NOTICE: once it's errored or completed, you can't send new values into it
+try {
+  subject.next(4); //throws ObjectUnsubscribedError
+} catch (err) {
+  console.error("oops", err);
 }
-// Notice we've moved the creation of the WebSocket
-// *outside* of the observable.
-const socket = new FakeWebSocket("ws://someurl");
-
-const source = new Observable(observer => {
-  // here our observable is "closing over" the producer
-  // the producer (socket) is a shared reference for
-  // every call/subscription
-  socket.addEventListener("message", e => observer.next(e));
-
-  //NOTICE: no returned teardown. :(
-});
-/* In comparison: COLD Observable */
-// const source = new Observable(observer => {
-//   const socket = new FakeWebSocket("ws://someurl");
-//   socket.addEventListener("message", e => observer.next(e));
-//   return () => socket.close();
-// });
-
-/**
- * Notice in console that ONE connection is made
- * and shared.
- */
-
-// first connection
-var sub1 = source.subscribe(e => console.log("s1", e));
-
-// second connection one second later
-var sub2;
-setTimeout(() => {
-  sub2 = source.subscribe(e => console.log("s2", e));
-}, 1000);
-
-// since it's a "hot" observable, a new connection is created
-// only once for all subscriptions to the same observable.
-
-setTimeout(() => {
-  sub1.unsubscribe();
-}, 3000);
-
-setTimeout(() => {
-  sub2.unsubscribe();
-}, 4000);
