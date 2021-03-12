@@ -1,6 +1,7 @@
 // Import stylesheets
 import "./style.css";
 import { Observable, Subject } from "rxjs";
+import { share, pipe } from "rxjs/operators"
 
 // Write Javascript code!
 const appDiv = document.getElementById("app");
@@ -22,12 +23,6 @@ class FakeWebSocket {
     clearInterval(this.id);
   }
 
-                                   
-                                                            
-                                                             
-                           
-    
-  
   addEventListener(name, handler) {
     const listeners = (this.listeners = this.listeners || {});
     const handlers = (listeners[name] = listeners[name] || []);
@@ -45,35 +40,13 @@ class FakeWebSocket {
   }
 }
 
-// function makeHot(cold) {
-//   const subject = new Subject();
-//   cold.subscribe(subject);
-//   return new Observable(observer => subject.subscribe(observer));
-// }
-function makeHotRefCounted(cold) {
-  const subject = new Subject();
-  const mainSub = cold.subscribe(subject);
-  let refs = 0;
-  return new Observable((observer) => {
-    refs++;
-    let sub = subject.subscribe(observer);
-    return () => {
-      refs--;
-      if (refs === 0) mainSub.unsubscribe();
-      sub.unsubscribe();
-    };
-  });
-}
-
 const source = new Observable(observer => {
   const socket = new FakeWebSocket("ws://someurl");
   socket.addEventListener("message", e => observer.next(e));
   return () => socket.close();
 });
-
-
               
-const hot = makeHotRefCounted(source);
+const hot = source.pipe(share());
 
 /**
  * Notice in console that ONE connection is made.
