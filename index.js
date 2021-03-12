@@ -1,6 +1,6 @@
 // Import stylesheets
 import "./style.css";
-import { Observable } from "rxjs";
+import { Observable, Subject } from "rxjs";
 
 // Write Javascript code!
 const appDiv = document.getElementById("app");
@@ -38,46 +38,40 @@ class FakeWebSocket {
     }
   }
 }
-// Notice we've moved the creation of the WebSocket
-// *outside* of the observable.
-const socket = new FakeWebSocket("ws://someurl");
+
+function makeHot(cold) {
+  const subject = new Subject();
+  cold.subscribe(subject);
+  return new Observable(observer => subject.subscribe(observer));
+}
 
 const source = new Observable(observer => {
-  // here our observable is "closing over" the producer
-  // the producer (socket) is a shared reference for
-  // every call/subscription
+  const socket = new FakeWebSocket("ws://someurl");
   socket.addEventListener("message", e => observer.next(e));
-
-  //NOTICE: no returned teardown. :(
+  return () => socket.close();
 });
-/* In comparison: COLD Observable */
-// const source = new Observable(observer => {
-//   const socket = new FakeWebSocket("ws://someurl");
-//   socket.addEventListener("message", e => observer.next(e));
-//   return () => socket.close();
-// });
+
+const hot = makeHot(source);
 
 /**
- * Notice in console that ONE connection is made
- * and shared.
+ * Notice in console that ONE connection is made.
  */
 
 // first connection
-var sub1 = source.subscribe(e => console.log("s1", e));
+var sub1 = hot.subscribe(e => console.log("s1", e));
 
 // second connection one second later
 var sub2;
 setTimeout(() => {
-  sub2 = source.subscribe(e => console.log("s2", e));
+  sub2 = hot.subscribe(e => console.log("s2", e));
 }, 1000);
 
-// since it's a "hot" observable, a new connection is created
-// only once for all subscriptions to the same observable.
+// since we're pumping all of the values through a Subject, which
+// mutlicasts to all subscribers, we've made our source "hot".
 
+// After a while, we'll unsubscribe from both,
+// but notice, the socket never disconnects.
 setTimeout(() => {
   sub1.unsubscribe();
-}, 3000);
-
-setTimeout(() => {
   sub2.unsubscribe();
-}, 4000);
+}, 3000);
