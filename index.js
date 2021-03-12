@@ -39,10 +39,24 @@ class FakeWebSocket {
   }
 }
 
-function makeHot(cold) {
+// function makeHot(cold) {
+//   const subject = new Subject();
+//   cold.subscribe(subject);
+//   return new Observable(observer => subject.subscribe(observer));
+// }
+function makeHotRefCounted(cold) {
   const subject = new Subject();
-  cold.subscribe(subject);
-  return new Observable(observer => subject.subscribe(observer));
+  const mainSub = cold.subscribe(subject);
+  let refs = 0;
+  return new Observable((observer) => {
+    refs++;
+    let sub = subject.subscribe(observer);
+    return () => {
+      refs--;
+      if (refs === 0) mainSub.unsubscribe();
+      sub.unsubscribe();
+    };
+  });
 }
 
 const source = new Observable(observer => {
@@ -51,7 +65,7 @@ const source = new Observable(observer => {
   return () => socket.close();
 });
 
-const hot = makeHot(source);
+const hot = makeHotRefCounted(source);
 
 /**
  * Notice in console that ONE connection is made.
@@ -70,7 +84,7 @@ setTimeout(() => {
 // mutlicasts to all subscribers, we've made our source "hot".
 
 // After a while, we'll unsubscribe from both,
-// but notice, the socket never disconnects.
+// and now our socket will disconnect.
 setTimeout(() => {
   sub1.unsubscribe();
   sub2.unsubscribe();
