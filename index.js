@@ -22,6 +22,12 @@ class FakeWebSocket {
     clearInterval(this.id);
   }
 
+                                   
+                                                            
+                                                             
+                           
+    
+  
   addEventListener(name, handler) {
     const listeners = (this.listeners = this.listeners || {});
     const handlers = (listeners[name] = listeners[name] || []);
@@ -65,6 +71,8 @@ const source = new Observable(observer => {
   return () => socket.close();
 });
 
+
+              
 const hot = makeHotRefCounted(source);
 
 /**
@@ -73,12 +81,14 @@ const hot = makeHotRefCounted(source);
 
 // first connection
 var sub1 = hot.subscribe(e => console.log("s1", e));
+         
 
 // second connection one second later
 var sub2;
 setTimeout(() => {
   sub2 = hot.subscribe(e => console.log("s2", e));
 }, 1000);
+
 
 // since we're pumping all of the values through a Subject, which
 // mutlicasts to all subscribers, we've made our source "hot".
@@ -89,3 +99,9 @@ setTimeout(() => {
   sub1.unsubscribe();
   sub2.unsubscribe();
 }, 3000);
+
+                  
+                               
+                                           
+                                             
+         
